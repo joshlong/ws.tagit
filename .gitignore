@@ -6,4 +6,5 @@ release.properties
 .idea
 .settings
 .classpath
+.gitignore~
 *.iml
