@@ -26,7 +26,7 @@
             <version>${project.version}</version>
         </dependency>
 
-        <dependency>
+     <!--   <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
@@ -40,12 +40,7 @@
                     <groupId>org.codehaus.jackson</groupId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <scope>test</scope>
-        </dependency>
+        </dependency>-->
 
         <!-- additions -->
         <dependency>

@@ -1,14 +1,13 @@
 package ws.tagit;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.security.authentication.AuthenticationManager;
+/*import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -16,21 +15,20 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.encrypt.Encryptors;
-import org.springframework.security.crypto.encrypt.TextEncryptor;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
-import org.springframework.security.oauth2.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.oauth2.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;*/
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.servlet.*;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.List;
@@ -40,9 +38,9 @@ import java.util.stream.Collectors;
 /**
  * Request OAuth authorization:
  * <code>
- *     curl -X POST -vu android-tags:123456 http://localhost:8080/oauth/token -H "Accept: application/json" -d "password=password&username=joshlong&grant_type=password&scope=write&client_secret=123456&client_id=android-tags
+ * curl -X POST -vu android-tags:123456 http://localhost:8080/oauth/token -H "Accept: application/json" -d "password=password&username=joshlong&grant_type=password&scope=write&client_secret=123456&client_id=android-tags"
  * </code>
- *
+ * <p/>
  * <p/>
  * Use the access_token returned in the previous request to make the authorized request to the protected endpoint:
  * <code>curl -v POST http://127.0.0.1:8080/tags --data "tags=cows,dogs"  -H "Authorization: Bearer 66953496-fc5b-44d0-9210-b0521863ffcb"</code>
@@ -65,18 +63,7 @@ public class Application {
         return new TagTemplate();
     }
 
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance();
-    }
-
-    @Bean
-    TextEncryptor textEncryptor() {
-        return Encryptors.noOpText();
-    }
-
-
-    @Configuration
+    /*@Configuration
     @EnableWebSecurity
     static class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
 
@@ -109,12 +96,12 @@ public class Application {
 
         @Override
         protected void configure(HttpSecurity http) throws Exception {
-            http.csrf().requireCsrfProtectionMatcher(new AntPathRequestMatcher("/oauth/authorize")).disable();
+            http.csrf().disable();
             http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
             http.requestMatchers()
                     .and()
                     .authorizeRequests()
-                    .antMatchers("/").permitAll()
+                    .antMatchers("/", "/hi").permitAll()
                     .anyRequest().authenticated();
         }
     }
@@ -124,7 +111,7 @@ public class Application {
     @EnableAuthorizationServer
     static class OAuth2Configuration extends AuthorizationServerConfigurerAdapter {
 
-        private final String applicationName = "tags";
+        private String applicationName = "tags";
 
         @Autowired
         private AuthenticationManager authenticationManager;
@@ -145,8 +132,18 @@ public class Application {
                     .secret("123456");
         }
     }
+    */
 
 
+}
+
+@RestController
+class HelloController {
+
+    @RequestMapping("/hi")
+    String hello (){
+        return "Hi";
+    }
 }
 
 @RestController("/tags")
@@ -184,7 +181,7 @@ class TagRestController {
 
 interface TagRepository extends JpaRepository<UserTag, Long> {
 
-    List<UserTag> findByUsernameAndContentId (String u, String c);
+    List<UserTag> findByUsernameAndContentId(String u, String c);
 
     List<UserTag> findByUsername(String u);
 }
@@ -246,4 +243,24 @@ class UserTag {
     public Long getId() {
         return id;
     }
+}
+
+@Component
+class SimpleCORSFilter implements Filter {
+
+    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+        HttpServletResponse response = (HttpServletResponse) res;
+        response.setHeader("Access-Control-Allow-Origin", "*");
+        response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
+        response.setHeader("Access-Control-Max-Age", "3600");
+        response.setHeader("Access-Control-Allow-Headers", "x-requested-with");
+        chain.doFilter(req, res);
+    }
+
+    public void init(FilterConfig filterConfig) {
+    }
+
+    public void destroy() {
+    }
+
 }
