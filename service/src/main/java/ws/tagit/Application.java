@@ -18,13 +18,17 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
-import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.servlet.*;
+import javax.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.List;
@@ -97,14 +101,13 @@ public class Application {
             http.requestMatchers()
                     .and()
                     .authorizeRequests()
-                    .antMatchers("/").permitAll()
+                    .antMatchers("/","/hi").permitAll()
                     .anyRequest().authenticated();
         }
     }
 
 
     @Configuration
-    @EnableResourceServer
     @EnableAuthorizationServer
     static class OAuth2Configuration extends AuthorizationServerConfigurerAdapter {
 
@@ -142,7 +145,8 @@ class HelloController {
     }
 }
 
-@RestController("/tags")
+@RestController
+@RequestMapping("/tags")
 class TagRestController {
 
     @Autowired
@@ -240,7 +244,6 @@ class UserTag {
         return id;
     }
 }
-/*
 
 @Component
 class SimpleCORSFilter implements Filter {
@@ -260,4 +263,4 @@ class SimpleCORSFilter implements Filter {
     public void destroy() {
     }
 
-}*/
+}
