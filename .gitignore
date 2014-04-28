@@ -6,3 +6,4 @@ release.properties
 .idea
 .settings
 .classpath
+*.iml
