@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
-/*import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -19,16 +19,12 @@ import org.springframework.security.oauth2.config.annotation.configurers.ClientD
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
-import org.springframework.security.oauth2.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;*/
-import org.springframework.stereotype.Component;
+import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.web.bind.annotation.*;
 
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
-import javax.servlet.*;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.List;
@@ -63,7 +59,7 @@ public class Application {
         return new TagTemplate();
     }
 
-    /*@Configuration
+    @Configuration
     @EnableWebSecurity
     static class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
 
@@ -101,10 +97,11 @@ public class Application {
             http.requestMatchers()
                     .and()
                     .authorizeRequests()
-                    .antMatchers("/", "/hi").permitAll()
+                    .antMatchers("/").permitAll()
                     .anyRequest().authenticated();
         }
     }
+
 
     @Configuration
     @EnableResourceServer
@@ -117,8 +114,8 @@ public class Application {
         private AuthenticationManager authenticationManager;
 
         @Override
-        public void configure(OAuth2AuthorizationServerConfigurer oauthServer) throws Exception {
-            oauthServer.authenticationManager(this.authenticationManager);
+        public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
+            endpoints.authenticationManager(this.authenticationManager);
         }
 
         @Override
@@ -132,7 +129,6 @@ public class Application {
                     .secret("123456");
         }
     }
-    */
 
 
 }
@@ -141,7 +137,7 @@ public class Application {
 class HelloController {
 
     @RequestMapping("/hi")
-    String hello (){
+    String hello() {
         return "Hi";
     }
 }
@@ -244,6 +240,7 @@ class UserTag {
         return id;
     }
 }
+/*
 
 @Component
 class SimpleCORSFilter implements Filter {
@@ -263,4 +260,4 @@ class SimpleCORSFilter implements Filter {
     public void destroy() {
     }
 
-}
+}*/
