@@ -1,20 +1,21 @@
 package ws.tagit;
 
+import org.apache.catalina.filters.CorsFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.context.embedded.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configurers.GlobalAuthenticationConfigurerAdapter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
@@ -55,40 +56,31 @@ public class Application {
     }
 
     @Bean
+    FilterRegistrationBean corsFilter() {
+        CorsFilter filter = new CorsFilter();
+        FilterRegistrationBean reg = new FilterRegistrationBean(filter);
+        reg.addInitParameter(CorsFilter.PARAM_CORS_ALLOWED_ORIGINS, "*");
+        return reg;
+    }
+
+    @Bean
     TagTemplate tagTemplate() {
         return new TagTemplate();
     }
 
     @Configuration
-    @EnableWebSecurity
-    static class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
+    static class WebSecurityConfiguration extends GlobalAuthenticationConfigurerAdapter {
 
-
+        // todo talk to a database!
         @Override
-        protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-            auth.userDetailsService(userDetailsService());
+        public void init(AuthenticationManagerBuilder auth) throws Exception {
+            auth.userDetailsService((username) -> new org.springframework.security.core.userdetails.User(
+                    username, "password", true, true, true, true, AuthorityUtils.createAuthorityList("USER", "write")));
         }
+    }
 
-        @Override
-        protected UserDetailsService userDetailsService() {
-            return (username) -> {
-                boolean valid = true;
-                return new org.springframework.security.core.userdetails.User(
-                        username, "password", valid, valid, valid, valid, AuthorityUtils.createAuthorityList("USER", "write"));
-            };
-        }
-
-        @Bean
-        @Override
-        public UserDetailsService userDetailsServiceBean() throws Exception {
-            return super.userDetailsServiceBean();
-        }
-
-        @Bean
-        @Override
-        public AuthenticationManager authenticationManagerBean() throws Exception {
-            return super.authenticationManagerBean();
-        }
+    @Configuration
+    static class SimpleWebSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
 
         @Override
         protected void configure(HttpSecurity http) throws Exception {
@@ -97,31 +89,33 @@ public class Application {
             http.requestMatchers()
                     .and()
                     .authorizeRequests()
-                    .antMatchers("/").permitAll()
+                    .antMatchers("/", "/hi").permitAll()
                     .anyRequest().authenticated();
         }
     }
-
 
     @Configuration
     @EnableResourceServer
     @EnableAuthorizationServer
     static class OAuth2Configuration extends AuthorizationServerConfigurerAdapter {
 
-        private String applicationName = "tags";
+        private final String applicationName = "tags";
 
+        /**
+         * This is required for password grants, which we specify below as one of the  {@literal authorizedGrantTypes()}.
+         */
         @Autowired
         private AuthenticationManager authenticationManager;
 
         @Override
         public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-            endpoints.authenticationManager(this.authenticationManager);
+            endpoints.authenticationManager(authenticationManager);
         }
 
         @Override
         public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
             clients.inMemory()
-                    .withClient("android-tags")
+                    .withClient("android-" + applicationName)
                     .authorizedGrantTypes("password", "authorization_code", "refresh_token")
                     .authorities("ROLE_USER")
                     .scopes("write")
@@ -129,7 +123,6 @@ public class Application {
                     .secret("123456");
         }
     }
-
 
 }
 
@@ -158,8 +151,7 @@ class TagRestController {
 
         return this.tagTemplate.tags(tags)
                 .stream()
-                .map(t -> tagRepository.save(
-                        new UserTag(principal.getName(), contentId, t.getCleanTag(), t.getTag())))
+                .map(t -> tagRepository.save(new UserTag(principal.getName(), contentId, t.getCleanTag(), t.getTag())))
                 .collect(Collectors.toList());
     }
 
@@ -240,24 +232,3 @@ class UserTag {
         return id;
     }
 }
-/*
-
-@Component
-class SimpleCORSFilter implements Filter {
-
-    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
-        HttpServletResponse response = (HttpServletResponse) res;
-        response.setHeader("Access-Control-Allow-Origin", "*");
-        response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
-        response.setHeader("Access-Control-Max-Age", "3600");
-        response.setHeader("Access-Control-Allow-Headers", "x-requested-with");
-        chain.doFilter(req, res);
-    }
-
-    public void init(FilterConfig filterConfig) {
-    }
-
-    public void destroy() {
-    }
-
-}*/
