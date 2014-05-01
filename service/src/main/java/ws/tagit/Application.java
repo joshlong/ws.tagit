@@ -12,21 +12,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.GlobalAuthenticationConfigurerAdapter;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
-import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.web.bind.annotation.*;
 
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.servlet.*;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.List;
@@ -56,12 +55,22 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
+
     @Bean
-    FilterRegistrationBean corsFilter() {
-        CorsFilter filter = new CorsFilter();
-        FilterRegistrationBean reg = new FilterRegistrationBean(filter);
-        reg.addInitParameter(CorsFilter.PARAM_CORS_ALLOWED_ORIGINS, "*");
-        return reg;
+    FilterRegistrationBean filterRegistrationBean (){
+        return new FilterRegistrationBean(new Filter() {
+            public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+                HttpServletResponse response = (HttpServletResponse) res;
+                response.setHeader("Access-Control-Allow-Origin", "http://localhost:9000");
+                response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
+                response.setHeader("Access-Control-Max-Age", "3600");
+                response.setHeader("Access-Control-Allow-Credentials", "true");
+                response.setHeader("Access-Control-Allow-Headers", CorsFilter.DEFAULT_ALLOWED_HTTP_HEADERS + ",Authorization" );
+                chain.doFilter(req, res);
+            }
+            public void init(FilterConfig filterConfig) {}
+            public void destroy() {}
+        });
     }
 
     @Bean
