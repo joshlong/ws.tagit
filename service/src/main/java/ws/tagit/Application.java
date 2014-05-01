@@ -24,6 +24,7 @@ import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.servlet.*;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.Principal;
@@ -60,13 +61,20 @@ public class Application {
     FilterRegistrationBean filterRegistrationBean (){
         return new FilterRegistrationBean(new Filter() {
             public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+                HttpServletRequest request = (HttpServletRequest) req;
                 HttpServletResponse response = (HttpServletResponse) res;
+                String method = request.getMethod();
                 response.setHeader("Access-Control-Allow-Origin", "http://localhost:9000");
                 response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
                 response.setHeader("Access-Control-Max-Age", "3600");
                 response.setHeader("Access-Control-Allow-Credentials", "true");
                 response.setHeader("Access-Control-Allow-Headers", CorsFilter.DEFAULT_ALLOWED_HTTP_HEADERS + ",Authorization" );
-                chain.doFilter(req, res);
+
+                if("OPTIONS".equals(method)) {
+                    response.setStatus(200);
+                } else {
+                    chain.doFilter(req, res);
+                }
             }
             public void init(FilterConfig filterConfig) {}
             public void destroy() {}
@@ -144,7 +152,8 @@ class HelloController {
     }
 }
 
-@RestController("/tags")
+@RestController
+@RequestMapping("/tags")
 class TagRestController {
 
     @Autowired

@@ -87,6 +87,15 @@ $(function (evt) {
         beforeSend: function (xhr) {
             //  xhr.setRequestHeader("Origin", 'http://localhost:9000/hello.html');
             //  xhr.setRequestHeader("Authorization", make_base_auth("foo","bar"));
+            xhr.setRequestHeader ("Authorization", "Basic YW5kcm9pZC10YWdzOjEyMzQ1Ng==");
+        },
+        data: {
+            username: 'joshlong',
+            password: 'password',
+            grant_type: 'password',
+            scope: 'write',
+            client_secret: '123456',
+            client_id: 'android-tags'
         },
         xhrFields: {
             withCredentials: true
