@@ -1,16 +1,30 @@
-$( function() {
+$(function (evt) {
 
-	 
-	 // make a call to our ajax service 
-	 $(document).ready(function() {
-	     $.ajax({
-	         url: "http://localhost:8080/hi"
-	     }).then(function(data, status, jqxhr) {
-	     //   $('.greeting-id').append(data.id);
-	       // $('.greeting-content').append(data.content);
-	        console.log(jqxhr); 
-	     });
-	 });
-   
-	
+    var clientId = 'android-tags';
+    var clientSecret = '123456';
+    var username = 'joshlong';
+    var password = 'password';
+    var oauthTokenEndpoint = "http://localhost:8080/oauth/token";
+    $.ajax({
+        method: 'POST',
+        url: oauthTokenEndpoint,
+        dataType: 'json',
+        async: false,
+        headers: {
+            "Authorization": btoa(clientId + ":" + clientSecret)
+        },
+        data: {
+            username: username,
+            password: password,
+            grant_type: 'password',
+            scope: 'write',
+            client_secret: clientSecret,
+            client_id: clientId
+        },
+        success: function (response) {
+          alert( JSON.stringify (response))
+        }
+    });
+
+
 });

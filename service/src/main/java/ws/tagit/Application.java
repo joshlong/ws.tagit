@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
+import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.web.bind.annotation.*;
 
 import javax.persistence.Column;
@@ -79,8 +80,8 @@ public class Application {
         }
     }
 
-    @Configuration
-    static class SimpleWebSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
+   /* @Configuration
+    static class SimpleWebSecurityConfigurer extends WebSecurityConfigurerAdapter {
 
         @Override
         protected void configure(HttpSecurity http) throws Exception {
@@ -88,12 +89,11 @@ public class Application {
             http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
             http.requestMatchers()
                     .and()
-                    .authorizeRequests()
-                    .antMatchers("/", "/hi").permitAll()
+                    .authorizeRequests().antMatchers("/", "/hi").permitAll()
                     .anyRequest().authenticated();
         }
     }
-
+*/
     @Configuration
     @EnableResourceServer
     @EnableAuthorizationServer
