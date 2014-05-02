@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.GlobalAuthenticationConfigurerAdapter;
@@ -71,7 +72,7 @@ public class Application {
                 response.setHeader("Access-Control-Allow-Headers", CorsFilter.DEFAULT_ALLOWED_HTTP_HEADERS + ",Authorization" );
 
                 if("OPTIONS".equals(method)) {
-                    response.setStatus(200);
+                    response.setStatus(HttpStatus.OK.value());
                 } else {
                     chain.doFilter(req, res);
                 }
@@ -97,20 +98,7 @@ public class Application {
         }
     }
 
-   /* @Configuration
-    static class SimpleWebSecurityConfigurer extends WebSecurityConfigurerAdapter {
 
-        @Override
-        protected void configure(HttpSecurity http) throws Exception {
-            http.csrf().disable();
-            http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-            http.requestMatchers()
-                    .and()
-                    .authorizeRequests().antMatchers("/", "/hi").permitAll()
-                    .anyRequest().authenticated();
-        }
-    }
-*/
     @Configuration
     @EnableResourceServer
     @EnableAuthorizationServer
@@ -143,14 +131,6 @@ public class Application {
 
 }
 
-@RestController
-class HelloController {
-
-    @RequestMapping("/hi")
-    String hello() {
-        return "Hi";
-    }
-}
 
 @RestController
 @RequestMapping("/tags")
