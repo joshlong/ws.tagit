@@ -1,3 +1,1 @@
-
-@Controller 
-class JsClient {}
+@Controller class JsClient {}

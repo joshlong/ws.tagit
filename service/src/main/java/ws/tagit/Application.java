@@ -1,7 +1,8 @@
 package ws.tagit;
 
-import org.apache.catalina.filters.CorsFilter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.context.embedded.FilterRegistrationBean;
@@ -9,35 +10,43 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configurers.GlobalAuthenticationConfigurerAdapter;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import ws.tagit.parser.TagTemplate;
 
-import javax.persistence.Column;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import javax.persistence.*;
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.Principal;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
  * Request OAuth authorization:
  * <code>
- * curl -X POST -vu android-tags:123456 http://localhost:8080/oauth/token -H "Accept: application/json" -d "password=password&username=joshlong&grant_type=password&scope=write&client_secret=123456&client_id=android-tags"
+ * curl -X POST -vu android-tags:123456 http://localhost:8080/oauth/token -H "Accept: application/json" -d "password=password&username=joshl&grant_type=password&scope=write&client_secret=123456&client_id=android-tags"
  * </code>
  * <p/>
  * <p/>
@@ -47,7 +56,6 @@ import java.util.stream.Collectors;
  *
  * @author Josh Long
  */
-
 @Configuration
 @ComponentScan
 @EnableAutoConfiguration
@@ -57,28 +65,29 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
-
     @Bean
-    FilterRegistrationBean filterRegistrationBean (){
+    FilterRegistrationBean corsFilter (@Value("${tagit.origin:}") String origin) {
         return new FilterRegistrationBean(new Filter() {
-            public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+            public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+                    throws IOException, ServletException {
                 HttpServletRequest request = (HttpServletRequest) req;
                 HttpServletResponse response = (HttpServletResponse) res;
                 String method = request.getMethod();
                 response.setHeader("Access-Control-Allow-Origin", "http://localhost:9000");
-                response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
-                response.setHeader("Access-Control-Max-Age", "3600");
+                response.setHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS,DELETE");
+                response.setHeader("Access-Control-Max-Age", Long.toString(60 * 60));
                 response.setHeader("Access-Control-Allow-Credentials", "true");
-                response.setHeader("Access-Control-Allow-Headers", CorsFilter.DEFAULT_ALLOWED_HTTP_HEADERS + ",Authorization" );
-
-                if("OPTIONS".equals(method)) {
+                response.setHeader("Access-Control-Allow-Headers", "Origin,Accept,X-Requested-With,Content-Type,Access-Control-Request-Method,Access-Control-Request-Headers,Authorization");
+                if ("OPTIONS".equals(method)) {
                     response.setStatus(HttpStatus.OK.value());
                 } else {
                     chain.doFilter(req, res);
                 }
             }
-            public void init(FilterConfig filterConfig) {}
-            public void destroy() {}
+            public void init(FilterConfig filterConfig) {
+            }
+            public void destroy() {
+            }
         });
     }
 
@@ -90,11 +99,17 @@ public class Application {
     @Configuration
     static class WebSecurityConfiguration extends GlobalAuthenticationConfigurerAdapter {
 
-        // todo talk to a database!
+        @Autowired
+        AccountRepository accountRepository;
+
         @Override
         public void init(AuthenticationManagerBuilder auth) throws Exception {
-            auth.userDetailsService((username) -> new org.springframework.security.core.userdetails.User(
-                    username, "password", true, true, true, true, AuthorityUtils.createAuthorityList("USER", "write")));
+            UserDetailsService userDetailsService =
+                    (username) ->
+                            accountRepository.findByUsername(username)
+                                    .map(a -> new User(a.username, a.password, true, true, true, true, AuthorityUtils.createAuthorityList("USER", "write")))
+                                    .orElseThrow(() -> new UsernameNotFoundException("couldn't find the user " + username));
+            auth.userDetailsService(userDetailsService);
         }
     }
 
@@ -104,13 +119,11 @@ public class Application {
     @EnableAuthorizationServer
     static class OAuth2Configuration extends AuthorizationServerConfigurerAdapter {
 
-        private final String applicationName = "tags";
+        String applicationName = "tags";
 
-        /**
-         * This is required for password grants, which we specify below as one of the  {@literal authorizedGrantTypes()}.
-         */
+        // This is required for password grants, which we specify below as one of the  {@literal authorizedGrantTypes()}.
         @Autowired
-        private AuthenticationManager authenticationManager;
+        AuthenticationManager authenticationManager;
 
         @Override
         public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
@@ -142,91 +155,114 @@ class TagRestController {
     @Autowired
     TagRepository tagRepository;
 
-    @RequestMapping(method = RequestMethod.POST)
-    Collection<UserTag> tags(Principal principal,
-                             @RequestParam(required = false) String contentId,
-                             @RequestParam String tags) {
+    @Autowired
+    AccountRepository accountRepository;
 
-        return this.tagTemplate.tags(tags)
-                .stream()
-                .map(t -> tagRepository.save(new UserTag(principal.getName(), contentId, t.getCleanTag(), t.getTag())))
+    @RequestMapping(method = RequestMethod.POST)
+    ResponseEntity<Collection<Tag>> post(
+            Principal principal,
+            @RequestParam(required = false) String contentId,
+            @RequestParam String tags) {
+
+        Account account = accountRepository.findByUsername(principal.getName()).get();
+
+        Stream<ws.tagit.parser.Tag> tagStream = tagTemplate.tags(tags).stream();
+
+        List<Tag> tagList = tagStream
+                .map(t -> tagRepository.save(new ws.tagit.Tag(account, t.getCleanTag(), t.getTag(), contentId)))
                 .collect(Collectors.toList());
+
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setLocation(ServletUriComponentsBuilder.fromCurrentRequest().build().toUri());
+
+        return new ResponseEntity<>(tagList, HttpStatus.CREATED);
     }
 
     @RequestMapping(method = RequestMethod.GET)
-    Collection<UserTag> userTags(Principal principal) {
-        return this.tagRepository.findByUsername(principal.getName());
+    ResponseEntity<Collection<Tag>> get(Principal principal) {
+        return new ResponseEntity<>(accountRepository.findByUsername(principal.getName()).get().tags, HttpStatus.OK);
     }
-
-    @RequestMapping(method = RequestMethod.GET, value = "/{tagId}")
-    Collection<UserTag> userAndContentTags(Principal principal, @PathVariable String tagId) {
-        return this.tagRepository.findByUsernameAndContentId(principal.getName(), tagId);
-    }
-
 }
 
-interface TagRepository extends JpaRepository<UserTag, Long> {
-
-    List<UserTag> findByUsernameAndContentId(String u, String c);
-
-    List<UserTag> findByUsername(String u);
+interface AccountRepository extends JpaRepository<Account, Long> {
+    Optional<Account> findByUsername(String n);
 }
 
+interface TagRepository extends JpaRepository<ws.tagit.Tag, Long> {
+    Optional<ws.tagit.Tag> findByAccountUsernameAndContentId(String u, String c);
 
-@javax.persistence.Entity
-class UserTag {
+    Optional<ws.tagit.Tag> findByAccountUsername(String u);
+}
 
-    @Column(nullable = false)
-    private String username;
+@Entity
+class Account {
 
-    @Column(nullable = false)
-    private String canonicalTag;
-
-    private String sourceTag;
-    private String contentId;
-
-    @Override
-    public String toString() {
-        return "UserTag{" +
-                "username='" + username + '\'' +
-                ", canonicalTag='" + canonicalTag + '\'' +
-                ", sourceTag='" + sourceTag + '\'' +
-                ", contentId='" + contentId + '\'' +
-                ", id=" + id +
-                '}';
-    }
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY, mappedBy = "account")
+    public Set<Tag> tags = new HashSet<>();
 
     @Id
     @GeneratedValue
-    private Long id;
+    public Long id;
 
-    UserTag() {
+
+    public String username;
+
+    Account(String name, String password) {
+        this.username = name;
+        this.password = password;
     }
 
-    UserTag(String username, String contentId, String canonicalTag, String sourceTag) {
-        this.username = username;
-        this.canonicalTag = canonicalTag;
-        this.sourceTag = sourceTag;
+    Account() {
+    }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                '}';
+    }
+
+    @JsonIgnore
+    public String password;
+
+
+}
+
+@Entity
+class Tag {
+    @Column(nullable = false)
+    public String canonicalTag;
+    public String contentId;
+    public String tag;
+
+    @Id
+    @GeneratedValue
+    public Long id;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    public Account account;
+
+    Tag() {
+    }
+
+    @Override
+    public String toString() {
+        return "Tag{" +
+                "canonicalTag='" + canonicalTag + '\'' +
+                ", contentId='" + contentId + '\'' +
+                ", tag='" + tag + '\'' +
+                ", id=" + id +
+                ", account=" + account +
+                '}';
+    }
+
+    Tag(Account a, String normalizedTag, String tag, String contentId) {
+        this.account = a;
+        this.canonicalTag = normalizedTag;
         this.contentId = contentId;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public String getCanonicalTag() {
-        return canonicalTag;
-    }
-
-    public String getSourceTag() {
-        return sourceTag;
-    }
-
-    public String getContentId() {
-        return contentId;
-    }
-
-    public Long getId() {
-        return id;
+        this.tag = tag;
     }
 }
