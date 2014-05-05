@@ -3,6 +3,7 @@ package ws.tagit;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.context.embedded.FilterRegistrationBean;
@@ -25,6 +26,8 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,9 +41,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.Principal;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 /**
@@ -66,7 +71,13 @@ public class Application {
     }
 
     @Bean
-    FilterRegistrationBean corsFilter (@Value("${tagit.origin:}") String origin) {
+    CommandLineRunner commandLineRunner(TagService tagService) {
+        return (args)-> tagService.createTags(
+                "rodj", "someuniquecontentid", "'spring framework',jdbc,aop,'dependency injection', #bigdata");
+    }
+
+    @Bean
+    FilterRegistrationBean corsFilter(@Value("${tagit.origin:}") String origin) {
         return new FilterRegistrationBean(new Filter() {
             public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
                     throws IOException, ServletException {
@@ -84,8 +95,10 @@ public class Application {
                     chain.doFilter(req, res);
                 }
             }
+
             public void init(FilterConfig filterConfig) {
             }
+
             public void destroy() {
             }
         });
@@ -105,10 +118,9 @@ public class Application {
         @Override
         public void init(AuthenticationManagerBuilder auth) throws Exception {
             UserDetailsService userDetailsService =
-                    (username) ->
-                            accountRepository.findByUsername(username)
-                                    .map(a -> new User(a.username, a.password, true, true, true, true, AuthorityUtils.createAuthorityList("USER", "write")))
-                                    .orElseThrow(() -> new UsernameNotFoundException("couldn't find the user " + username));
+                    (username) -> accountRepository.findByUsername(username)
+                            .map(a -> new User(a.username, a.password, true, true, true, true, AuthorityUtils.createAuthorityList("USER", "write")))
+                            .orElseThrow(() -> new UsernameNotFoundException("couldn't find the user " + username));
             auth.userDetailsService(userDetailsService);
         }
     }
@@ -144,10 +156,21 @@ public class Application {
 
 }
 
+@Service
+@Transactional
+class TagService {
 
-@RestController
-@RequestMapping("/tags")
-class TagRestController {
+    Collection<Tag> readTags(String principalName) {
+        return accountRepository.findByUsername(principalName).get().tags;
+    }
+
+    Collection<Tag> createTags(String principalName, String contentId, String tags) {
+        Account account = accountRepository.findByUsername(principalName).get();
+
+        return tagTemplate.tags(tags).stream()
+                .map(t -> tagRepository.save(new ws.tagit.Tag(account, t.getCleanTag(), t.getTag(), contentId)))
+                .collect(Collectors.toList());
+    }
 
     @Autowired
     TagTemplate tagTemplate;
@@ -157,30 +180,31 @@ class TagRestController {
 
     @Autowired
     AccountRepository accountRepository;
+}
+
+@RestController
+@RequestMapping("/tags")
+class TagRestController {
+
+    @Autowired TagService tagService;
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<Collection<Tag>> post(
             Principal principal,
             @RequestParam(required = false) String contentId,
             @RequestParam String tags) {
-
-        Account account = accountRepository.findByUsername(principal.getName()).get();
-
-        Stream<ws.tagit.parser.Tag> tagStream = tagTemplate.tags(tags).stream();
-
-        List<Tag> tagList = tagStream
-                .map(t -> tagRepository.save(new ws.tagit.Tag(account, t.getCleanTag(), t.getTag(), contentId)))
-                .collect(Collectors.toList());
-
         HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.setLocation(ServletUriComponentsBuilder.fromCurrentRequest().build().toUri());
+        httpHeaders.setLocation(
+                ServletUriComponentsBuilder.fromCurrentRequest().build().toUri());
 
-        return new ResponseEntity<>(tagList, HttpStatus.CREATED);
+        return new ResponseEntity<>(
+                this.tagService.createTags(principal.getName(), contentId, tags), HttpStatus.CREATED);
     }
 
     @RequestMapping(method = RequestMethod.GET)
     ResponseEntity<Collection<Tag>> get(Principal principal) {
-        return new ResponseEntity<>(accountRepository.findByUsername(principal.getName()).get().tags, HttpStatus.OK);
+        return new ResponseEntity<>(
+                tagService.readTags(principal.getName()), HttpStatus.OK);
     }
 }
 
