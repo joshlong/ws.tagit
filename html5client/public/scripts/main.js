@@ -14,6 +14,7 @@ require.config({
 
 define([ 'require', 'angular', 'jquery' ], function (require, angular, $) {
     'use strict';
+
     var username = 'rodj';
     var password = 'password';
     var grantType = 'password';
@@ -22,69 +23,77 @@ define([ 'require', 'angular', 'jquery' ], function (require, angular, $) {
     var urlBase = 'http://localhost:8080';
     var clientSecret = '123456';
     var encodedClientUserAndPassword = btoa(clientId + ':' + clientSecret);
+    var appName = 'tagit';
+     angular.module(appName, [])
+        .controller('TagController', ['$scope', '$http', '$log' , 'TagService', function ($scope, $http, $log, tagService) {
+//            $scope.message = 'Got the accessToken: ' + accessToken;
+            $('#x').click(tagService.read)
+        }])
+        .service('TagService', function ($http) {
+        })
+        .run([ '$window' , '$http', function ($window, $http) {
 
-    $.ajax({
-        type: 'POST',
-        method: 'POST',
-        cache: true,
-        dataType: "json",
-        url: urlBase + "/oauth/token", // built in caching should
-        // return the same value anyway, right?
-        beforeSend: function (xhr) {
-            xhr.setRequestHeader("Authorization", "Basic " + encodedClientUserAndPassword);
-        },
-        data: {
-            username: username,
-            password: password,
-            grant_type: 'password',
-            scope: 'write',
-            client_secret: clientSecret,
-            client_id: clientId
-        },
-        xhrFields: {
-            withCredentials: true
-        },
-        context: {},
-        success: function (data) {
-            var accessToken = data ['access_token'];
-            setup( urlBase, require, angular, $, accessToken);
-        }
-    });
-
+            // todo this should only be after the first successful HTTP call
+            // $http.defaults.headers.common['Authorization'] = 'Bearer ' + accessToken;
+            $http({
+                method: 'POST',
+                params: {
+                    'username': username,
+                    'password': password,
+                    'grant_type': 'password',
+                    'scope': 'write',
+                    'client_secret': clientSecret,
+                    'client_id': clientId
+                },
+                url: urlBase + "/oauth/token",
+                headers: {
+                    'Authorization': "Basic " + encodedClientUserAndPassword
+                }
+            })
+                .success(function (data, status, headers, config) {
+                    // this callback will be called asynchronously
+                    // when the response is available
+                    $http.defaults.headers.common['Authorization'] = 'Bearer ' + data['access_token'];
+                })
+                .error(function (data, status, headers, config) {
+                    // called asynchronously if an error occurs
+                    // or server returns response with an error status.
+                });
+        }])
+    ;
+    angular.bootstrap(document, [ appName ]);
 });
 
-function setup( urlBase, require, angular, $, accessToken) {
+
+
+function setup(urlBase, require, angular, $, accessToken) {
 
     var appName = 'tagit';
 
     console.log('received accessToken: ' + accessToken);
 
-    /*angular.module('app', ['ngRoute', 'ngResource']).run(function($http) {
-     $http.defaults.headers.common.language='fr-FR';
-     });*/
-
     angular.module(appName, [])
-        .controller('TagController', ['$scope', '$http', '$log' ,'TagService', function ($scope, $http, $log, TagService) {
+        .controller('TagController', ['$scope', '$http', '$log' , 'TagService', function ($scope, $http, $log, TagService) {
             $scope.message = 'Got the accessToken: ' + accessToken;
 
 
         }])
-        .service(  'TagService', function($http){
+        .service('TagService', function ($http) {
             $http({
                 method: 'GET',
                 url: urlBase + '/tags'//,
                 //params: 'limit=10, sort_by=created:desc',
                 //headers: {'Authorization': 'Token token=xxxxYYYYZzzz'}
-            }).success(function(data){
+            }).success(function (data) {
                 // With the data succesfully returned, call our callback
-                 console.log( JSON.stringify(  data ))
-            }).error(function(){
+                console.log(JSON.stringify(data))
+            }).error(function () {
                 alert("error");
             });
 
         })
-        .run ( [ '$window' , '$http',   function($window, $http ){
-          $http.defaults.headers.common['Authorization'] ='Bearer ' + accessToken ;
+        .run([ '$window' , '$http', function ($window, $http) {
+            $http.defaults.headers.common['Authorization'] = 'Bearer ' + accessToken;
         }]);
 
 
