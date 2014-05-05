@@ -9,14 +9,22 @@
 </head>
 <body>
 
-    <script src="bower_components/requirejs/require.js" data-main="scripts/main.js"></script>
+<script src="bower_components/requirejs/require.js" data-main="scripts/main.js"></script>
 
-    <h1> Tagger!</h1>
+<h1> Tagger!</h1>
 
-    <div ng-controller="TagController">
-        {{ message }}
-        <a id="x" href="#"> Link </a>
-    </div>
+
+
+<div>
+    <ul class="nav">
+        <li><a href="#login"> Sign In </a></li>
+        <li><a href="#tags"> Tags </a></li>
+    </ul>
+</div>
+<div>
+    <div ng-view></div>
+</div>
+
 
 </body>
 </html>

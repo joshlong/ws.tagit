@@ -72,8 +72,11 @@ public class Application {
 
     @Bean
     CommandLineRunner commandLineRunner(TagService tagService) {
-        return (args)-> tagService.createTags(
-                "rodj", "someuniquecontentid", "'spring framework',jdbc,aop,'dependency injection', #bigdata");
+        return (args) -> {
+            tagService.createTags("joshl", "1", "coffee,code,'spring framework', AOP, JDBC, frameworks, 'open-source'");
+            tagService.createTags("rodj", "2", "'spring framework',jdbc,aop,'dependency injection', #bigdata");
+
+        };
     }
 
     @Bean
@@ -186,7 +189,8 @@ class TagService {
 @RequestMapping("/tags")
 class TagRestController {
 
-    @Autowired TagService tagService;
+    @Autowired
+    TagService tagService;
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity<Collection<Tag>> post(

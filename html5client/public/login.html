@@ -1,0 +1,18 @@
+<div style="background-color: gold ; padding: 10px ;" ng-controller="LoginController">
+    <h2> Sign In </h2>
+
+  <DIV style="background-color: lightgoldenrodyellow;">   {{ message }} </DIV>
+
+    <form name="loginForm">
+        <div>
+            User Name: <input name="username" ng-model="username" required/>
+            <span class="error" ng-show="loginForm.username.$error.required">Required!</span><br>
+        </div>
+        <div>
+            Password: <input name="password" ng-model="password" required/>
+            <span class="error" ng-show="loginForm.password.$error.required">Required!</span><br>
+        </div>
+        <a href="javascript:void(0);" ng-click="login()"> Sign In </a>
+    </form>
+
+</div>
