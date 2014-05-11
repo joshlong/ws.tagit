@@ -33,18 +33,22 @@ public class ApplicationTests {
     public void testSavingTags() throws Exception {
 
         String username = "joshl";
-        accountRepository.findByUsername(username)
-                .ifPresent(a ->
-                        tagTemplate.tags("spring,cows,dogs,#twitterstyle,'complex tags'")
-                                .stream()
-                                .map(t -> tagRepository.save(new Tag(a, t.getCleanTag(), t.getTag(), Integer.toString(t.hashCode()))))
-                                .forEach(System.err::println));
+        accountRepository.findByUsername(username).ifPresent(a -> {
+            a.tags.forEach(tagRepository::delete);
+            a.tags.forEach(System.out::println);
+            tagTemplate.tags("spring,cows,dogs,#twitterstyle,'complex tags'")
+                    .stream()
+                    .map(t -> tagRepository.save(new Tag(a, t.getCleanTag(), t.getTag(), Integer.toString(t.hashCode()))))
+                    .forEach(System.err::println);
+            accountRepository.findByUsername( username).ifPresent( aa -> {
+                assert aa.tags.size() >= 5;
+            });
+
+
+        });
 
         Account account = accountRepository.findByUsername(username).get();
-        assert null != account;
-        accountRepository.findByUsername(username).ifPresent(a -> {
-            assert a.tags.size() == 5;
-        });
+
 
     }
 
